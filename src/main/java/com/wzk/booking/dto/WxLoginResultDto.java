@@ -13,36 +13,22 @@ import java.util.Date;
 @Data
 @ApiModel("登录信息DTO")
 public class WxLoginResultDto {
-    @ApiModelProperty(value = "用户ID")
-    private String user_id;
+    @ApiModelProperty(value = "登录CODE")
+    private String code;
 
-    @ApiModelProperty(value = "openId")
+    @ApiModelProperty(value = "用户唯一标识")
     private String openId;
 
-    @ApiModelProperty(value = "用户昵称")
-    private String nickName;
+    @ApiModelProperty(value = "会话密钥")
+    private String session_key;
 
-    @ApiModelProperty(value = "性别")
-    private String gender;
+    @ApiModelProperty(value = "错误码")
+    private Number errcode;
 
-    @ApiModelProperty(value = "语言")
-    private String language;
+    @ApiModelProperty(value = "错误信息")
+    private String errmsg;
 
-    @ApiModelProperty(value = "城市")
-    private String city;
-
-    @ApiModelProperty(value = "省份")
-    private String province;
-
-    @ApiModelProperty(value = "国家")
-    private String country;
-
-    @ApiModelProperty(value = "头像URL")
-    private String avatarUrl;
-
-    @ApiModelProperty(value = "唯一标识")
+    @ApiModelProperty(value = "用户在平台唯一标识")
     private String unionId;
 
-    @ApiModelProperty(value = "创建时间")
-    private Date create_date;
 }
