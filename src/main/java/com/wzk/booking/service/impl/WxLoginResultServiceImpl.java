@@ -1,8 +1,20 @@
 package com.wzk.booking.service.impl;
 
-import com.wzk.booking.dto.WxLoginResultDto;
+
+import cn.binarywang.wx.miniapp.api.WxMaService;
+import com.alibaba.fastjson.JSONObject;
+import com.wzk.booking.common.Constants;
+import com.wzk.booking.request.WxLoginRequest;
+import com.wzk.booking.result.WxLoginResult;
 import com.wzk.booking.service.WxLoginResultService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import javax.annotation.Resource;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author WANGZHONGKANG
@@ -10,62 +22,34 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class WxLoginResultServiceImpl implements WxLoginResultService {
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
+    private static final String code2Session = "/sns/jscode2session?appid={appid}&secret={secret}&js_code={jsCode}&grant_type=authorization_code";
+
+    @Resource
+    private WxMaService wxMaService;
+
+    private RestTemplate restTemplate;
+
 
     /**
      *  处理小程序登录授权
      */
     @Override
-    public WxLoginResultDto dealLoginAuth(String  code, String data, String iv) {
-        WxMaJscode2SessionResult session =new WxMaJscode2SessionResult();
-        //调微信官方接口获得sesssion_key openid存到 session对象里
-        try {　　　　　　  //code换取sessionKey
-            session = wxMaService.getUserService().getSessionInfo(code);
-            this.logger.info(session.getSessionKey());
-            this.logger.info(session.getOpenid());
+    public WxLoginResult wxLogin(WxLoginRequest loginRequest) throws Exception {
+        WxLoginResult result = new WxLoginResult();
+        //打包请求参数
+        Map<String,String> params = new HashMap<>();
+        params.put("appid", Constants.WX_APP_ID);
+        params.put("secret",Constants.WX_APP_SECRET);
+        params.put("jsCode",loginRequest.getCode());
 
-        } catch (WxErrorException e) {
-            this.logger.error("获得sessionKey失败", e);
+        //请求微信小程序登录接口
+        JSONObject object = restTemplate.getForObject(Constants.WX_APP_UIL+code2Session,JSONObject.class,params);
+        if(object.isEmpty()){
+            throw new Exception("微信登录失败,微信返回为空");
         }
-        WxMaAuthResult wxMaAuthResult = new WxMaAuthResult();　　　　 //该类用来存储用户信息
-        WxMaUserInfoExtends wxMaUserInfoExtends =  new WxMaUserInfoExtends();
-        WxMaUserInfo wxMaUserInfo = new WxMaUserInfo();
-        //暂时写死失效时间
-        int expire=3600;
-        String sessionKey = session.getSessionKey();
-        String rawData = StringEscapeUtils.unescapeHtml4(data);
-        // 解密用户信息
-        try {　　　　　　　//sessionkey data iv 解密用户信息
-            wxMaUserInfo = this.wxMaService.getUserService().getUserInfo(sessionKey, data, iv);
-        } catch (Exception e) {
-            // TODO Auto-generated catch block
-            logger.error("解密用户信息失败");
-            e.printStackTrace();
-        }
-        BeanUtils.copyProperties(wxMaUserInfo, wxMaUserInfoExtends);
-        String third_session = Base64UUID.ramdomID();
-        wxMaAuthResult.setToken(third_session);
-        String user_id = Base64UUID.ramdomID();
-        wxMaUserInfoExtends.setUser_id(user_id);
-        //通过openid获取或新增用户信息
-        if(wxMaUserMapper.countAny(session.getOpenid())>0 ){
-            //存在 数据库更新
-            wxMaUserMapper.addWxMaUser(wxMaUserInfoExtends);
-            //这里是将用户信息存到redis
-            wxMaAuthSessionStorage.addWxMaSession(expire,third_session,wxMaUserInfoExtends);
-            //不把openId传到前台
-            wxMaUserInfo.setOpenId("");
-            wxMaAuthResult.setIsReg(true);
-            wxMaAuthResult.setSuccess(true);
-            wxMaAuthResult.setWxMaUserInfoExtends(wxMaUserInfoExtends);
-        } else {
-            //不存在 数据库保存信息
-            wxMaUserMapper.addWxMaUser(wxMaUserInfoExtends);
-            wxMaAuthSessionStorage.addWxMaSession(expire,third_session,wxMaUserInfoExtends);
-            wxMaUserInfo.setOpenId("");
-            wxMaAuthResult.setSuccess(true);
-            wxMaAuthResult.setIsReg(false);
-            wxMaAuthResult.setWxMaUserInfoExtends(wxMaUserInfoExtends);
-        }
-        return wxMaAuthResult;
+
+
+        return result;
     }
 }
